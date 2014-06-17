@@ -1,3 +1,4 @@
 *.pyc
 *.un~
 __init__.py
+vasp.py
