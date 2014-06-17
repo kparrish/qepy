@@ -2,6 +2,8 @@
 ## ## ## Created: 06/12/2014 - KDP
 import os
 import numpy as np
+from shutil import rmtree
+from os.path import isdir
 
 control_keys = [
 	'calculation',
@@ -35,7 +37,7 @@ control_keys = [
 
 system_keys = [
 	'ibrav',
-	'celldm(1)',
+	'celldm',	# parenthesis
 	'nat',
 	'ntyp',
 	'nbnd',
@@ -163,9 +165,7 @@ atomic_species_keys = [
 atomic_positions_keys = [
 	# 'atom_symbols',
 	'atom_positions',
-	'if_pos(1)',
-	'if_pos(2)',
-	'if_pos(3)',
+	'if_pos',		#parenthesis
 ]
 
 
@@ -203,247 +203,205 @@ class PWscf:
 			The energy found in the QE file.
 	"""
 	def __init__(self, qedir, **kwargs):
-		self.qedir = qedir
-		self.calculator_params = {}
+		usrHome = os.path.expanduser('~')
+		self.qedir = qedir.replace('~', usrHome)
+		self.control_params = {}
 		self.system_params = {}
 		self.electrons_params = {}
 		self.ions_params = {}
 		self.cell_params = {}
 		self.atomic_species_params = {}
 		self.atomic_positions_params = {}
+		self.k_points_params = {}
+		self.cell_parameters_params = {}
+		for key in control_keys:
+			
+			self.control_params[key] = None
+		for key in system_keys:
+			self.system_params[key] = None
+		for key in electrons_keys:
+			self.electrons_params[key] = None
+		for key in ions_keys:
+			self.ions_params[key] = None
+		for key in cell_keys:
+			self.cell_params[key] = None
+		for key in atomic_species_keys:
+			self.atomic_species_params[key] = None
+		for key in atomic_positions_keys:
+			self.atomic_positions_params[key] = None
+		for key in k_points_keys:
+			self.k_points_params[key] = None
+		for key in cell_parameters_keys:
+			self.cell_parameters_params[key] = None
 
+		self.set(**kwargs)
 
+	def set(self, **kwargs):
+		for key in kwargs:
+			if self.control_params.has_key(key):
+				self.control_params[key] = kwargs[key]
+			elif self.system_params.has_key(key):
+				self.system_params[key] = kwargs[key]
+			elif self.electrons_params.has_key(key):
+				self.electrons_params[key] = kwargs[key]
+			elif self.ions_params.has_key(key):
+				self.ions_params[key] = kwargs[key]
+			elif self.cell_params.has_key(key):
+				self.cell_params[key] = kwargs[key]
+			elif self.atomic_species_params.has_key(key):
+				self.atomic_species_params[key] = kwargs[key]
+			elif self.atomic_positions_params.has_key(key):
+				self.atomic_positions_params[key] = kwargs[key]
+			elif self.k_points_params.has_key(key):
+				self.k_points_params[key] = kwargs[key]
+			elif self.cell_parameters_params.has_key(key):
+				self.cell_parameters_params[key] = kwargs[key]
+			else:
+				raise TypeError('Parameter not defined: '+ key)
 
+	def calculate(self, recalc=False):
+		qedir = str(self.qedir).rstrip('/')
+		outdir = self.control_params['outdir'].strip(' \t\n\r/.')
+		if not recalc:
+			if isdir(qedir):
+				raise OSError('Directory {0} exists, set recalc=False to override and delete the directory'.format(qedir))
+		else:
+			if isdir(qedir):
+				rmtree(qedir)
 
-	
-	# Cleanup inputs
-	if outdir == None:
-		outdir=str(title)+'/tmp/'
-	if prefix == None:
-		prefix=str(title)
+		os.mkdir('{0}'.format(qedir))
+		os.mkdir('{0}/{1}'.format(qedir, outdir)) #need to handle relative and absolute
 
-	numProcs = str(numProcs)
-	wallHrs = str(wallHrs)
-	mem = str(mem)
-	vmem = str(vmem)
-	npool = str(npool)
-	kpt = str(kpt)
-	ecutwfc = str(ecutwfc)
-	atom_id = str(atom_id)
-	atom_mass = str(atom_mass)
-	atom_pot = str(atom_pot)
-
-	# Read structure directory
-	dfptFile = open(struct_dir + '/dfpt')
-
-	latVec = np.zeros((3,3))
-	latVecNum = -1
-	latConst = 0.0
-	numAtoms = -1
-	atomSym = []
-	qPoints = np.zeros((3))
-
-	i = 0
-	while True:
-		myString = dfptFile.readline()
-
-		if i == 0:
-			latConst = float(myString)
-			i += 1
-
-		if myString.find('Lattice Vectors:') > -1:
-			lineCont = dfptFile.readline().split()
-			latVec[0,:] = float(lineCont[0]), float(lineCont[1]), float(lineCont[2])
-			i += 1
-			lineCont = dfptFile.readline().split()
-			latVec[1,:] = float(lineCont[0]), float(lineCont[1]), float(lineCont[2])
-			i += 1
-			lineCont = dfptFile.readline().split()
-			latVec[2,:] = float(lineCont[0]), float(lineCont[1]), float(lineCont[2])
-			i += 1
-
-		if myString.find('Number of Atoms:') > -1:
-			lineCont = myString.split()
-			numAtoms = int(lineCont[3])
-			atomPos = np.zeros((numAtoms, 3))
-			for atom in range(numAtoms):
-				lineCont = dfptFile.readline().split()
-				atomSym.append(lineCont[0])
-				atomPos[atom, :] = lineCont[1:4]
-				i += 1
-
-		if myString.find('q Points needed') > -1:
-			lineCont = dfptFile.readline().split()
-			qPoints[:] = lineCont[:]
-			i += 1
-
-		if myString == '':
-			break
-	
-	dfptFile.close()
-
-	# Make executable directories
-	if os.path.isdir(title):
-		os.system('rm -r '+ title)
-	if os.path.isdir(outdir):
-		os.system('rm -r '+ outdir)
-	os.system('mkdir ' + title)
-	os.system('mkdir ' + outdir)
-	
-	# Make input file
-	celldm = str(float(latConst) * float(ascale) / (0.5291772108))
-	inFileName = './' + title+'/qe.in'
-
-	_qeControl(inFileName,
-			title=title, 
-			calculation=calculation,
-			restart_mode=restart_mode,
-			outdir=outdir,
-			prefix=prefix,
-			tprnfor=tprnfor,
-			etot_conv_thr=etot_conv_thr)
-
-	_qeSystem(inFileName,
-			ibrav=ibrav, 
-			celldm=celldm,
-			numAtoms=numAtoms,
-			ntyp=ntyp,
-			ecutwfc=ecutwfc)
-
-	_qeElectrons(inFileName,
-			conv_thr=conv_thr,
-			mixing_beta=mixing_beta)
-
-	_qeAtomicSpecies(inFileName,
-			atom_id=atom_id,
-			atom_mass=atom_mass,
-			atom_pot=atom_pot)
-
-	_qeAtomicPositions(inFileName,
-			numAtoms=numAtoms,
-			atomSym=atomSym,
-			atomPos=atomPos)
-
-	_qeKpoints(inFileName,
-			kpt=kpt)
-
-	_qeCellParameters(inFileName,
-			latVec=latVec)
-
-	# Make submission file
-	runFileName = './' + title + '/run.sh'
-
-	_qeSubmission(runFileName,
-			title=title,
-			numProcs=numProcs,
-			wallHrs=wallHrs,
-			mem=mem,
-			vmem=vmem)
-#-- END converge --#
+		_qeControl(self)
+		_qeSystem(self)
+		_qeElectrons(self)
+		_qeAtomicSpecies(self)
+		_qeAtomicPositions(self)
+		_qeKpoints(self)
+		_qeCellParameters(self)
+		# _qeSubmission(self)
 		
-def _qeControl(fileName,
-			title=None, 
-			calculation=None,
-			restart_mode=None,
-			outdir=None,
-			prefix=None,
-			tprnfor=None,
-			etot_conv_thr=None):
+	def energy(self):
+		"""
+		Reads the energy from Quantum Espresso output file.
 
-	inFile = open(str(fileName), 'a')
+		ntpy.dft.energy(fileName)
+		Parameters
+		----------
+			fileName : str
+				A string containing the QE filename to read
+				energy from
+		Returns
+		-------
+			energy : float
+				The energy found in the QE file.
+		"""
+		dftFile = open(fileName)
+
+		while True:
+			myString = dfptFile.readline()
+
+			if myString.find('!') > -1:
+				dftFile.close()
+				return float(myString.split()[4])
+
+			# Add if job error found
+			elif myString == '':
+				dftFile.close()
+				###################throw error here
+				break
+		return 0
+	#-- END energy --#
+
+def _qeControl(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.control_params['title']
+	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile.write('# This file generated by qepy\n')
 	inFile.write(' &control' + '\n')
-	inFile.write('  ' + 'title=\'{0:s}\'\n'.format(title))
-	inFile.write('  ' + 'calculation=\'{0:s}\'\n'.format(calculation))
-	inFile.write('  ' + 'restart_mode=\'{0:s}\'\n'.format(restart_mode))
-	inFile.write('  ' + 'outdir=\'{0:s}\'\n'.format(outdir))
-	# inFile.write('  ' + 'pseudo_dir=\'{0:s}\'\n'.format(pseudo_dir))
-	inFile.write('  ' + 'prefix=\'{0:s}\'\n'.format(prefix))
-	inFile.write('  ' + 'tprnfor={0:s}\n'.format(tprnfor))
-	inFile.write('  ' + 'etot_conv_thr={0:s}\n'.format(etot_conv_thr))
+	for key, val in self.control_params.items():
+		if val is not None:
+			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
 	inFile.write(' /' + '\n')
 	inFile.close()
 #-- END _qeControl --#
 
-def _qeSystem(fileName,
-			ibrav=None, 
-			celldm=None,
-			numAtoms=None,
-			ntyp=None,
-			ecutwfc=None):
-
-	inFile = open(str(fileName), 'a')
+def _qeSystem(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.control_params['title']
+	inFile = open(qedir + '/' + str(fileName), 'a')
 	inFile.write(' &system' + '\n')
-	inFile.write('  ' + 'ibrav={0:s}\n'.format(ibrav))
-	inFile.write('  ' + 'celldm(1)={0:s}\n'.format(celldm))
-	inFile.write('  ' + 'nat={0:s}\n'.format(str(numAtoms)))
-	inFile.write('  ' + 'ntyp={0:s}\n'.format(ntyp))
-	inFile.write('  ' + 'ecutwfc={0:s}\n'.format(ecutwfc))
+	for key, val in self.system_params.items():
+		if val is not None:
+			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
 	inFile.write(' /' + '\n')
 	inFile.close()
 #-- END _qeSystem --#
 
-def _qeElectrons(fileName,
-			conv_thr=None,
-			mixing_beta=None):
-
-	inFile = open(str(fileName), 'a')
+def _qeElectrons(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.control_params['title']
+	inFile = open(qedir + '/' + str(fileName), 'a')
 	inFile.write(' &electrons' + '\n')
-	inFile.write('  ' + 'conv_thr={0:s}\n'.format(conv_thr))
-	inFile.write('  ' + 'mixing_beta={0:s}\n'.format(mixing_beta))
+	for key, val in self.electrons_params.items():
+		if val is not None:
+			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
 	inFile.write(' /' + '\n')
 	inFile.close()
 #-- END _qeElectrons --#
 
-def _qeAtomicSpecies(fileName,
-			atom_id=None,
-			atom_mass=None,
-			atom_pot=None):
-
-	inFile = open(str(fileName), 'a')
+def _qeAtomicSpecies(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.control_params['title']
+	inFile = open(qedir + '/' + str(fileName), 'a')
 	inFile.write('ATOMIC_SPECIES' + '\n')
-	inFile.write(' {0:s} {1:s} {2:s}\n'.format(atom_id, atom_mass, atom_pot))
+	# inFile.write(' {0:s} {1:s} {2:s}\n'.format(atom_id, atom_mass, atom_pot))
+	for key, val in self.atomic_species_params.items():
+		if val is not None:
+			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
 	inFile.close()
 #-- END _qeAtomicSpecies --#
 
-def _qeAtomicPositions(fileName,
-			numAtoms=None,
-			atomSym=None,
-			atomPos=None):
-
-	inFile = open(str(fileName), 'a')
+def _qeAtomicPositions(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.control_params['title']
+	inFile = open(qedir + '/' + str(fileName), 'a')
 	inFile.write('ATOMIC_POSITIONS crystal' + '\n')
-	for i in range(numAtoms):
-		inFile.write(' {0:s} {1:s} {2:s} {3:s}\n'.format(\
-			str(atomSym[i]), str(atomPos[i,0]), str(atomPos[i,1]), str(atomPos[i,2])))
+	# for i in range(numAtoms):
+		# inFile.write(' {0:s} {1:s} {2:s} {3:s}\n'.format(\
+			# str(atomSym[i]), str(atomPos[i,0]), str(atomPos[i,1]), str(atomPos[i,2])))
+	for key, val in self.atomic_positions_params.items():
+		if val is not None:
+			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
 	inFile.close()
 #-- END _qeAtomicPositions --#
 
-def _qeKpoints(fileName,
-			kpt=None):
-
-	inFile = open(str(fileName), 'a')
-	inFile.write('K_POINTS automatic' + '\n')
-	inFile.write(' {0} {0} {0} 0 0 0' + '\n'.format(str(kpt)))
+def _qeKpoints(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.control_params['title']
+	inFile = open(qedir + '/' + str(fileName), 'a')
+	# inFile.write('K_POINTS automatic' + '\n')
+	# inFile.write(' {0} {0} {0} 0 0 0' + '\n'.format(str(kpt)))
+	for key, val in self.k_points_params.items():
+		if val is not None:
+			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
 	inFile.close()
 #-- END _qeKpoints --#
 
-def _qeCellParameters(fileName,
-			latVec=None):
-
-	inFile = open(str(fileName), 'a')
+def _qeCellParameters(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.control_params['title']
+	inFile = open(qedir + '/' + str(fileName), 'a')
 	inFile.write('CELL_PARAMETERS cubic' + '\n')
-	for i in range(latVec[:,0].size):
-		inFile.write(' {0:s} {1:s} {2:s}\n'.format(str(latVec[i,0]), str(latVec[i,1]), str(latVec[i,2])))
+	# for i in range(latVec[:,0].size):
+		# inFile.write(' {0:s} {1:s} {2:s}\n'.format(str(latVec[i,0]), str(latVec[i,1]), str(latVec[i,2])))
+	for key, val in self.cell_parameters_params.items():
+		if val is not None:
+			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
 	inFile.close()
 #-- END qeCellParameters --#
 
-def _qeSubmission(fileName,
-			title=None,
-			numProcs=None,
-			wallHrs=None,
-			mem=None,
-			vmem=None):
-
+def _qeSubmission(self):
 	runFile = open(str(fileName), 'w')
 	runFile.write('#!/bin/bash' + '\n')
 	runFile.write('#PBS -j oe' + '\n')
@@ -457,82 +415,4 @@ def _qeSubmission(fileName,
 	runFile.close()
 #-- END _qeSubmission --#
 
-def _qeNumDisp():
-	ndisp = 0
-	while(True):
-		fname = './structure/disp_{0}.xyz'.format(str(ndisp))
-		fileExists = os.path.isfile(fname)
-		if fileExists:
-			ndisp += 1
-		else:
-			break
-	return ndisp
-#-- END _qeNumDisp --#
 
-def _qeAcell():
-	fname = './structure/acell'
-	latVec = np.zeros((3,3))
-	acell = open(fname)
-	for i in range(3):
-		lineCont = acell.readline().split
-		latVec[0,:] = float(lineCont[0]), float(lineCont[1]), float(lineCont[2])
-	return latVec
-#-- END _qeAcell --#
-
-def _qeNumAtomsDisp():
-	natom = 0
-	fname = './structure/disp_0.xyz'
-	disp = open(fname)
-	lineCont = acell.readline().split
-	natom = int(lineCont[0])
-	disp.close()
-	return natom
-#-- END _qeNumAtomsDisp --#
-
-def _qeDisp(ndisp, natom):
-	pos = np.zeros((3, natom, ndisp))
-	symbol = np.empty((natom, ndisp), dtype=object)
-	for d in range(ndisp): # displacement file
-		fname = './structure/disp_{0}.xyz'.format(str(d))
-		disp = open(fname)
-		lineCont = disp.readline() # read two header lines
-		lineCont = disp.readline()
-		for a in range(natom):
-			lineCont = disp.readline().split
-			symbol[a,d] = lineCont[0]
-			pos[:,a,d] = float(lineCont[2]), float(lineCont[3]), float(lineCont[4]) 
-		disp.close()
-	return pos, symbol
-#-- END _qeDisp --#
-
-
-def energy(fileName):
-	"""
-	Reads the energy from Quantum Espresso output file.
-
-	ntpy.dft.energy(fileName)
-	Parameters
-	----------
-		fileName : str
-			A string containing the QE filename to read
-			energy from
-	Returns
-	-------
-		energy : float
-			The energy found in the QE file.
-	"""
-	dftFile = open(fileName)
-
-	while True:
-		myString = dfptFile.readline()
-
-		if myString.find('!') > -1:
-			dftFile.close()
-			return float(myString.split()[4])
-
-		if myString == '':
-			print 'Did not find total energy!'
-			dftFile.close()
-			break
-	return 0
-#-- END energy --#
