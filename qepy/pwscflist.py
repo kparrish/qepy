@@ -1,23 +1,13 @@
 control_keys = [
-	'calculation',
-	'title',
-	'verbosity',
-	'restart_mode',
 	'wf_collect',
-	'nstep',
 	'iprint',
 	'tstress',
 	'tprnfor',
 	'dt',
-	'outdir',
-	'wfcdir',
-	'prefix',
 	'lkpoint_dir',
 	'max_seconds',
 	'etot_conv_thr',
 	'forc_conv_thr',
-	'disk_io',
-	'pseudo_dir',
 	'tefield',
 	'dipfield',
 	'lelfield',
@@ -26,6 +16,19 @@ control_keys = [
 	'lberry',
 	'gdir',
 	'nppstr',
+]
+
+quote_control_keys = [
+	'calculation',
+	'title',
+	'verbosity',
+	'restart_mode',
+	'nstep',
+	'outdir',
+	'wfcdir',
+	'prefix',
+	'disk_io',
+	'pseudo_dir',
 ]
 
 system_keys = [
@@ -178,6 +181,7 @@ k_points_keys = [
 ]
 
 cell_parameters_keys = [
+	'units',
 	'v1',
 	'v2',
 	'v3',
