@@ -172,9 +172,7 @@ cell_keys = [
 ]
 
 atomic_species_keys = [
-	'atom_symbols',
-	'atom_masses',
-	'pseudopot',
+	'atomic_species',
 ]
 
 atomic_positions_keys = [
