@@ -176,11 +176,9 @@ atomic_species_keys = [
 ]
 
 atomic_positions_keys = [
-	# 'atom_symbols',
-	'atom_positions',
-	'if_pos',		#parenthesis
+	'atomic_positions',
+	'atomic_positions_list',
 ]
-
 
 k_points_keys = [
 	'k_points',
