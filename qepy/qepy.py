@@ -23,6 +23,7 @@ class PWscf:
 		self.qedir = qedir.replace('~', usrHome)
 		self.quote_control_params = {}
 		self.control_params = {}
+		self.paren_system_params = {}
 		self.system_params = {}
 		self.electrons_params = {}
 		self.ions_params = {}
@@ -35,6 +36,8 @@ class PWscf:
 			self.quote_control_params[key] = None
 		for key in pwscfl.control_keys:
 			self.control_params[key] = None
+		for key in pwscfl.paren_system_keys:
+			self.paren_system_params[key] = None
 		for key in pwscfl.system_keys:
 			self.system_params[key] = None
 		for key in pwscfl.electrons_keys:
@@ -60,6 +63,8 @@ class PWscf:
 				self.quote_control_params[key] = '\'{0}\''.format(kwargs[key].strip('\'\" '))
 			elif self.control_params.has_key(key):
 				self.control_params[key] = kwargs[key]
+			elif self.paren_system_params.has_key(key):
+				self.paren_system_params[key] = kwargs[key]
 			elif self.system_params.has_key(key):
 				self.system_params[key] = kwargs[key]
 			elif self.electrons_params.has_key(key):
@@ -154,6 +159,12 @@ def _qeSystem(self):
 	fileName = self.quote_control_params['title'].strip('\'\"')
 	inFile = open(qedir + '/' + str(fileName), 'a')
 	inFile.write(' &system' + '\n')
+	for key, val in self.paren_system_params.items():
+		if val is not None:
+			if len(val) is not 2:
+				raise ValueError('Value for {0} must be a list or tuple of length 2'.format(key))
+			else:
+				inFile.write('  {0}({1})={2},\n'.format(str(key), str(val[0]), str(val[1])))
 	for key, val in self.system_params.items():
 		if val is not None:
 			inFile.write('  {0}={1},\n'.format(str(key), str(val)))

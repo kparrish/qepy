@@ -33,7 +33,12 @@ quote_control_keys = [
 
 system_keys = [
 	'ibrav',
-	'celldm',	# parenthesis
+	'A',
+	'B',
+	'C',
+	'cosAB',
+	'cosAC',
+	'cosBC',
 	'nat',
 	'ntyp',
 	'nbnd',
@@ -96,6 +101,20 @@ system_keys = [
 	'xdm',
 	'xdm_a1',
 	'xdm_a2',
+]
+
+paren_system_keys = [
+	'celldm',
+	'starting_magnetization',
+	'Hubbard_U',
+	'Hubbard_J0',
+	'Hubbard_alpha',
+	'Hubbard_beta',
+	'Hubbard_J',
+	'starting_ns_eigenvalue', #need to confirm
+	'angle1',
+	'angle2',
+	'fixed_magnetization',
 ]
 
 electrons_keys = [
