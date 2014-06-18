@@ -214,11 +214,26 @@ def _qeKpoints(self):
 	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"')
 	inFile = open(qedir + '/' + str(fileName), 'a')
-	# inFile.write('K_POINTS automatic' + '\n')
-	# inFile.write(' {0} {0} {0} 0 0 0' + '\n'.format(str(kpt)))
-	for key, val in self.k_points_params.items():
-		if val is not None:
-			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
+	kpt = self.k_points_params['k_points']
+	inFile.write('K_POINTS {0}\n'.format(kpt))
+	if kpt.lower() == 'tpiba' or kpt.lower() == 'crystal' or \
+			kpt.lower() == 'tpiba_b' or kpt.lower() == 'crystal_b' or \
+			kpt.lower() == 'tpiba_c' or kpt.lower() == 'crystal_c':
+		kpl = self.k_points_params['k_points_list']
+		inFile.write('  ')
+		for line in range(len(kpl)):
+			for item in range(len(kpl[line])):
+				inFile.write('{0} '.format(kpl[line][item]))
+			inFile.write('\n')
+	elif kpt.lower() == 'automatic':
+		kpl = self.k_points_params['k_points_list']
+		inFile.write('  ')
+		for item in range(len(kpl)):
+			inFile.write('{0} '.format(kpl[item]))
+		inFile.write('\n')
+	elif kpt.lower() != 'gamma':
+		raise ValueError('\'k_points\' must be either tpiba | crystal | tpiba_b | crystal_b | tipiba_c | crystal_c | automatic | gamma')
+		
 	inFile.close()
 #-- END _qeKpoints --#
 

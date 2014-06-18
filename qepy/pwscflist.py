@@ -110,7 +110,7 @@ paren_system_keys = [
 	'Hubbard_J0',
 	'Hubbard_alpha',
 	'Hubbard_beta',
-	'Hubbard_J',
+	'Hubbard_J', #need to confirm
 	'starting_ns_eigenvalue', #need to confirm
 	'angle1',
 	'angle2',
@@ -185,18 +185,8 @@ atomic_positions_keys = [
 
 
 k_points_keys = [
-	'K_POINTS',
-	'nks',
-	'xk_x',
-	'xk_y',
-	'xk_z',
-	'wk',
-	'nk1',
-	'nk2',
-	'nk3',
-	'sk1',
-	'sk2',
-	'sk3',
+	'k_points',
+	'k_points_list',
 ]
 
 cell_parameters_keys = [
