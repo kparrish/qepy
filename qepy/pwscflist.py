@@ -140,6 +140,10 @@ electrons_keys = [
 	'tqr',
 ]
 
+paren_electrons_keys = [
+	'efield_cart',
+]
+
 ions_keys = [
 	'ion_dynamics',
 	'ion_positions',
@@ -192,3 +196,16 @@ cell_parameters_keys = [
 	'v3',
 ]
 
+occupations_keys = [
+	'occupations_list',
+]
+
+constrains_keys = [
+	'nconst',
+	'constr_tol',
+	'constr_list',
+]
+
+atomic_forces_keys = [
+	'atomic_forces_list',
+]

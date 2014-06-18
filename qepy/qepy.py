@@ -26,6 +26,7 @@ class PWscf:
 		self.paren_system_params = {}
 		self.system_params = {}
 		self.electrons_params = {}
+		self.paren_electrons_params = {}
 		self.ions_params = {}
 		self.cell_params = {}
 		self.atomic_species_params = {}
@@ -42,6 +43,8 @@ class PWscf:
 			self.system_params[key] = None
 		for key in pwscfl.electrons_keys:
 			self.electrons_params[key] = None
+		for key in pwscfl.paren_electrons_keys:
+			self.paren_electrons_params[key] = None
 		for key in pwscfl.ions_keys:
 			self.ions_params[key] = None
 		for key in pwscfl.cell_keys:
@@ -55,9 +58,9 @@ class PWscf:
 		for key in pwscfl.cell_parameters_keys:
 			self.cell_parameters_params[key] = None
 
-		self.set(**kwargs)
+		self._set(**kwargs)
 
-	def set(self, **kwargs):
+	def _set(self, **kwargs):
 		for key in kwargs:
 			if self.quote_control_params.has_key(key):
 				self.quote_control_params[key] = '\'{0}\''.format(kwargs[key].strip('\'\" '))
@@ -69,6 +72,8 @@ class PWscf:
 				self.system_params[key] = kwargs[key]
 			elif self.electrons_params.has_key(key):
 				self.electrons_params[key] = kwargs[key]
+			elif self.paren_electrons_params.has_key(key):
+				self.paren_electrons_params[key] = kwargs[key]
 			elif self.ions_params.has_key(key):
 				self.ions_params[key] = kwargs[key]
 			elif self.cell_params.has_key(key):
@@ -184,6 +189,12 @@ def _qeElectrons(self):
 	for key, val in self.electrons_params.items():
 		if val is not None:
 			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
+	for key, val in self.paren_electrons_params.items():
+		if val is not None:
+			if len(val) is not 2:
+				raise ValueError('Value for {0} must be a list or tuple of length 2'.format(key))
+			else:
+				inFile.write('  {0}({1})={2},\n'.format(str(key), str(val[0]), str(val[1])))
 	inFile.write(' /' + '\n')
 	inFile.close()
 #-- END _qeElectrons --#
