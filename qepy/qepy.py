@@ -33,6 +33,7 @@ class PWscf:
 		self.atomic_positions_params = {}
 		self.k_points_params = {}
 		self.cell_parameters_params = {}
+		self.occupations_params = {}
 		for key in pwscfl.quote_control_keys:
 			self.quote_control_params[key] = None
 		for key in pwscfl.control_keys:
@@ -57,6 +58,8 @@ class PWscf:
 			self.k_points_params[key] = None
 		for key in pwscfl.cell_parameters_keys:
 			self.cell_parameters_params[key] = None
+		for key in pwscfl.occupations_parameters_keys:
+			self.occupations_params[key] = None
 
 		self._set(**kwargs)
 
@@ -86,6 +89,8 @@ class PWscf:
 				self.k_points_params[key] = kwargs[key]
 			elif self.cell_parameters_params.has_key(key):
 				self.cell_parameters_params[key] = kwargs[key]
+			elif self.occupations_params.has_key(key):
+				self.occupations_params[key] = kwargs[key]
 			else:
 				raise TypeError('Parameter not defined: '+ key)
 
@@ -105,10 +110,12 @@ class PWscf:
 		_qeControl(self)
 		_qeSystem(self)
 		_qeElectrons(self)
+		_qeIons(self)
 		_qeAtomicSpecies(self)
 		_qeAtomicPositions(self)
 		_qeKpoints(self)
 		_qeCellParameters(self)
+		_qeOccupations(self)
 		# _qeSubmission(self)
 		
 	def _energy(self):
@@ -191,6 +198,19 @@ def _qeElectrons(self):
 	inFile.write(' /' + '\n')
 	inFile.close()
 #-- END _qeElectrons --#
+
+def _qeIons(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
+	inFile = open(qedir + '/' + str(fileName), 'a')
+
+	inFile.write(' &ions' + '\n')
+	for key, val in self.ions_params.items():
+		if val is not None:
+			inFile.write('  {0}={1},\n'.format(str(key), str(val)))
+	inFile.write(' /' + '\n')
+	inFile.close()
+#-- END _qeIons --#
 
 def _qeAtomicSpecies(self):
 	qedir = str(self.qedir).rstrip('/')
@@ -289,6 +309,32 @@ def _qeCellParameters(self):
 			inFile.write(' {0:s} {1:s} {2:s}\n'.format(str(v3[0]), str(v3[1]), str(v3[2])))
 	inFile.close()
 #-- END qeCellParameters --#
+
+def _qeOccupations(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
+	inFile = open(qedir + '/' + str(fileName), 'a')
+	
+	inFile.write('OCCUPATIONS {0}\n'.format(str(ap)))
+	for key, val in self.occupations_params.items():
+		if val is not None:
+			if not isinstance(val[0], list):
+				if len(val) > 10:
+					raise ValueError(key + ' cannot must have len <= 10!')
+				inFile.write('  ')
+				for i in range(len(val):
+					inFile.write('{0} '.format(val[i]))
+				inFile.write('\n')
+			else:
+				for i in range(len(val)):
+					if len(val[i]) > 10:
+						raise ValueError(key + ' nested list cannot must have len <= 10!')
+					inFile.write('  ')
+					for j in range(len(val[i]):
+						inFile.write('{0} '.format(val[i][j]))
+					inFile.write('\n')
+	inFile.close()
+#-- END _qeOccupations --#
 
 def _qeSubmission(self):
 	runFile = open(str(fileName), 'w')

@@ -197,7 +197,8 @@ cell_parameters_keys = [
 ]
 
 occupations_keys = [
-	'occupations_list',
+	'f_inp1',
+	'f_inp2',
 ]
 
 constrains_keys = [
