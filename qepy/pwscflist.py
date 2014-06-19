@@ -204,9 +204,9 @@ occupations_keys = [
 constrains_keys = [
 	'nconst',
 	'constr_tol',
-	'constr_list',
+	'constr',
 ]
 
 atomic_forces_keys = [
-	'atomic_forces_list',
+	'atomic_forces',
 ]

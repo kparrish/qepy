@@ -33,7 +33,9 @@ class PWscf:
 		self.atomic_positions_params = {}
 		self.k_points_params = {}
 		self.cell_parameters_params = {}
+		self.constraints_params = {}
 		self.occupations_params = {}
+		self.atomic_forces_params = {}
 		for key in pwscfl.quote_control_keys:
 			self.quote_control_params[key] = None
 		for key in pwscfl.control_keys:
@@ -58,8 +60,12 @@ class PWscf:
 			self.k_points_params[key] = None
 		for key in pwscfl.cell_parameters_keys:
 			self.cell_parameters_params[key] = None
+		for key in pwscfl.constraints_parameters_keys:
+			self.constraints_params[key] = None
 		for key in pwscfl.occupations_parameters_keys:
 			self.occupations_params[key] = None
+		for key in pwscfl.atomic_forces_parameters_keys:
+			self.atomic_forces_params[key] = None
 
 		self._set(**kwargs)
 
@@ -89,8 +95,12 @@ class PWscf:
 				self.k_points_params[key] = kwargs[key]
 			elif self.cell_parameters_params.has_key(key):
 				self.cell_parameters_params[key] = kwargs[key]
+			elif self.constraints_params.has_key(key):
+				self.constraints_params[key] = kwargs[key]
 			elif self.occupations_params.has_key(key):
 				self.occupations_params[key] = kwargs[key]
+			elif self.atomic_forces_params.has_key(key):
+				self.atomic_forces_params[key] = kwargs[key]
 			else:
 				raise TypeError('Parameter not defined: '+ key)
 
@@ -116,6 +126,7 @@ class PWscf:
 		_qeKpoints(self)
 		_qeCellParameters(self)
 		_qeOccupations(self)
+		_qeAtomicForces(self)
 		# _qeSubmission(self)
 		
 	def _energy(self):
@@ -310,31 +321,103 @@ def _qeCellParameters(self):
 	inFile.close()
 #-- END qeCellParameters --#
 
+def _qeConstraints(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
+	inFile = open(qedir + '/' + str(fileName), 'a')
+
+	
+	use = False
+	for key, val in self.constraints_params.items():
+		if val is not None:
+			use = True
+		
+	if use:
+		inFile.write('CONSTRAINTS\n')
+		inFile.write('  {0}'.format(str(self.constraints_params['nconstr'])))
+		if self.constraints_params['constr_tol'] is not None:
+			inFile.write(' {0}'.format(str(self.constraints_params['constr_tol'])))
+		inFile.write('\n')
+
+		constr = self.constraints_params['constr']
+		inFile.write('  ')
+		if not isinstance(constr[0], list):
+			for i in range(len(constr)):
+				inFile.write('{0} '.format(str(constr[i])))
+			inFile.write('\n')
+		else:
+			for i in range(len(constr)):
+				for j in range(len(constr[i])):
+					inFile.write('{0} '.format(str(constr[i][j])))
+				inFile.write('\n')
+	inFile.close()
+#-- END _qeConstraints --#
+
 def _qeOccupations(self):
 	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
 	inFile = open(qedir + '/' + str(fileName), 'a')
+
 	
-	inFile.write('OCCUPATIONS {0}\n'.format(str(ap)))
+	use = False
 	for key, val in self.occupations_params.items():
 		if val is not None:
-			if not isinstance(val[0], list):
-				if len(val) > 10:
-					raise ValueError(key + ' cannot must have len <= 10!')
-				inFile.write('  ')
-				for i in range(len(val):
-					inFile.write('{0} '.format(val[i]))
-				inFile.write('\n')
-			else:
-				for i in range(len(val)):
-					if len(val[i]) > 10:
-						raise ValueError(key + ' nested list cannot must have len <= 10!')
+			use = True
+		
+	if use:
+		inFile.write('OCCUPATIONS\n')
+		for key, val in self.occupations_params.items():
+			if val is not None:
+				if not isinstance(val[0], list):
+					if len(val) > 10:
+						raise ValueError(key + ' cannot must have len <= 10!')
 					inFile.write('  ')
-					for j in range(len(val[i]):
-						inFile.write('{0} '.format(val[i][j]))
+					for i in range(len(val)):
+						inFile.write('{0} '.format(val[i]))
 					inFile.write('\n')
+				else:
+					for i in range(len(val)):
+						if len(val[i]) > 10:
+							raise ValueError(key + ' nested list cannot must have len <= 10!')
+						inFile.write('  ')
+						for j in range(len(val[i])):
+							inFile.write('{0} '.format(val[i][j]))
+						inFile.write('\n')
 	inFile.close()
 #-- END _qeOccupations --#
+
+def _qeAtomicForces(self):
+	qedir = str(self.qedir).rstrip('/')
+	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
+	inFile = open(qedir + '/' + str(fileName), 'a')
+
+	
+	use = False
+	for key, val in self.atomic_forces_params.items():
+		if val is not None:
+			use = True
+		
+	if use:
+		inFile.write('ATOMIC_FORCES\n')
+		for key, val in self.atomic_forces_params.items():
+			if val is not None:
+				if not isinstance(val[0], list):
+					if len(val) != 4:
+						raise ValueError(key + ' must have len of 4!')
+					inFile.write('  ')
+					for i in range(len(val)):
+						inFile.write('{0} '.format(val[i]))
+					inFile.write('\n')
+				else:
+					for i in range(len(val)):
+						if len(val[i]) != 4:
+							raise ValueError(key + ' must have len of 4!')
+						inFile.write('  ')
+						for j in range(len(val[i])):
+							inFile.write('{0} '.format(val[i][j]))
+						inFile.write('\n')
+	inFile.close()
+#-- END _qeAtomicForces --#
 
 def _qeSubmission(self):
 	runFile = open(str(fileName), 'w')
