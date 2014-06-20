@@ -4,9 +4,13 @@ import os
 import numpy as np
 from shutil import rmtree
 from os.path import isdir
-import pwscflist as pwscfl
 
-class PWscf:
+import pwxlist as pwxl		# parameter lists fo PWscf
+from qepyrc import *			# configuration file
+from qepy_exceptions import *	# exceptions definitions
+
+
+class pwx:
 	"""
 	qepy.PWscf()
 	Parameters
@@ -21,6 +25,7 @@ class PWscf:
 	def __init__(self, qedir, **kwargs):
 		usrHome = os.path.expanduser('~')
 		self.qedir = qedir.replace('~', usrHome)
+		self.cwd = os.getcwd()
 		self.quote_control_params = {}
 		self.control_params = {}
 		self.paren_system_params = {}
@@ -36,40 +41,74 @@ class PWscf:
 		self.constraints_params = {}
 		self.occupations_params = {}
 		self.atomic_forces_params = {}
-		for key in pwscfl.quote_control_keys:
+		for key in pwxl.quote_control_keys:
 			self.quote_control_params[key] = None
-		for key in pwscfl.control_keys:
+		for key in pwxl.control_keys:
 			self.control_params[key] = None
-		for key in pwscfl.paren_system_keys:
+		for key in pwxl.paren_system_keys:
 			self.paren_system_params[key] = None
-		for key in pwscfl.system_keys:
+		for key in pwxl.system_keys:
 			self.system_params[key] = None
-		for key in pwscfl.electrons_keys:
+		for key in pwxl.electrons_keys:
 			self.electrons_params[key] = None
-		for key in pwscfl.paren_electrons_keys:
+		for key in pwxl.paren_electrons_keys:
 			self.paren_electrons_params[key] = None
-		for key in pwscfl.ions_keys:
+		for key in pwxl.ions_keys:
 			self.ions_params[key] = None
-		for key in pwscfl.cell_keys:
+		for key in pwxl.cell_keys:
 			self.cell_params[key] = None
-		for key in pwscfl.atomic_species_keys:
+		for key in pwxl.atomic_species_keys:
 			self.atomic_species_params[key] = None
-		for key in pwscfl.atomic_positions_keys:
+		for key in pwxl.atomic_positions_keys:
 			self.atomic_positions_params[key] = None
-		for key in pwscfl.k_points_keys:
+		for key in pwxl.k_points_keys:
 			self.k_points_params[key] = None
-		for key in pwscfl.cell_parameters_keys:
+		for key in pwxl.cell_parameters_keys:
 			self.cell_parameters_params[key] = None
-		for key in pwscfl.constraints_parameters_keys:
+		for key in pwxl.constraints_keys:
 			self.constraints_params[key] = None
-		for key in pwscfl.occupations_parameters_keys:
+		for key in pwxl.occupations_keys:
 			self.occupations_params[key] = None
-		for key in pwscfl.atomic_forces_parameters_keys:
+		for key in pwxl.atomic_forces_keys:
 			self.atomic_forces_params[key] = None
 
 		self._set(**kwargs)
 
+	def __enter__(self):
+		"""
+		On enter, if directory does not exist, create it.
+		Change into directory.
+
+		Syntax:
+		with qepy() as calc:
+			try:
+				calc.my_command()
+			except (QepyException):
+				do something
+		"""
+		## Create Paths
+		qedir = str(self.qedir).rstrip('/')
+		outdir = self.quote_control_params['outdir'].strip(' \'\"\t\n\r/.')
+		#-- Add code to not delete if already exists --#
+		if isdir(qedir):
+			rmtree(qedir)
+
+		os.mkdir('{0}'.format(qedir))
+		os.mkdir('{0}/{1}'.format(qedir, outdir)) 
+		os.chdir(qedir)
+		return self
+	
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		"""
+		On exit, change back to original directory.
+		"""
+		os.chdir(self.cwd)
+		return False	# Allows exception to propogate out
+
 	def _set(self, **kwargs):
+		"""
+		Set kwargs parameters to those defined by pwxlist.
+		"""
 		for key in kwargs:
 			if self.quote_control_params.has_key(key):
 				self.quote_control_params[key] = '\'{0}\''.format(kwargs[key].strip('\'\" '))
@@ -104,19 +143,8 @@ class PWscf:
 			else:
 				raise TypeError('Parameter not defined: '+ key)
 
-	def calculate(self, recalc=False):
-		qedir = str(self.qedir).rstrip('/')
-		outdir = self.quote_control_params['outdir'].strip(' \'\"\t\n\r/.')
-		if not recalc:
-			if isdir(qedir):
-				raise OSError('Directory {0} exists, set recalc=False to override and delete the directory'.format(qedir))
-		else:
-			if isdir(qedir):
-				rmtree(qedir)
-
-		os.mkdir('{0}'.format(qedir))
-		os.mkdir('{0}/{1}'.format(qedir, outdir)) #need to handle relative and absolute
-
+	def calculate(self, recalc=False, norun=False, **kwargs):
+		## Create input file
 		_qeControl(self)
 		_qeSystem(self)
 		_qeElectrons(self)
@@ -127,8 +155,50 @@ class PWscf:
 		_qeCellParameters(self)
 		_qeOccupations(self)
 		_qeAtomicForces(self)
-		# _qeSubmission(self)
-		
+
+		## Set run/parallelization commands
+		# QEPYRC defaults
+		self.run_params = {}
+		self.parallel_params = {}
+		for key in pwxl.run_keys:
+			self.run_params[key] = None
+		for key in pwxl.parallel_keys:
+			self.parallel_params[key] = None
+		for key in QEPYRC:
+			if self.run_params.has_key(key):
+				self.run_params[key] = QEPYRC[key]
+
+		for key in kwargs:
+			if self.run_params.has_key(key):
+				self.run_params[key] = kwargs[key]
+			elif self.parallel_params.has_key(key):
+				self.parallel_params[key] = kwargs[key]
+			else:
+				raise TypeError('Parameter not defined: '+ key)
+		if self.run_params['jobname'] == None:
+			self.run_params['jobname'] = self.quote_control_params['title'].strip('\'\"')
+
+		## Submit/Run job
+		if not norun:
+			if self.run_params['mode'] == 'queue':
+				_qeSubmission(self)
+				os.system('qsub pwxrun.sh')
+			elif self.run_params['mode'] == 'local':
+				self._local(**kwargs)
+
+	def _local(self, **kwargs):
+		"""
+		Run the calculation through command line
+		"""
+		inFileName = self.quote_control_params['title'].strip('\'\"') + '.in'
+		outFileName = self.quote_control_params['title'].strip('\'\"') + '.out'
+		command = self.run_params['pw.x']
+		for key, value in self.parallel_params.items():
+			if value is not None:
+				command + '-{0} {1} '.format(str(key), str(value))
+		command + '< {0} > {1}'.format(inFileName, outFileName)
+		os.system(command)
+
 	def _energy(self):
 		fileName = self.quote_control_params['title'].strip('\'\"') + '.out'
 		outFile = open(qedir + '/' + str(fileName), 'r')
@@ -155,9 +225,8 @@ class PWscf:
 			return energy
 
 def _qeControl(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 
 	inFile.write('# This file generated by qepy\n')
 	inFile.write('# For more info, visit github.com/kparrish/qepy\n')
@@ -173,9 +242,8 @@ def _qeControl(self):
 #-- END _qeControl --#
 
 def _qeSystem(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 
 	inFile.write(' &system' + '\n')
 	for key, val in self.paren_system_params.items():
@@ -192,9 +260,8 @@ def _qeSystem(self):
 #-- END _qeSystem --#
 
 def _qeElectrons(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 
 	inFile.write(' &electrons' + '\n')
 	for key, val in self.electrons_params.items():
@@ -211,9 +278,8 @@ def _qeElectrons(self):
 #-- END _qeElectrons --#
 
 def _qeIons(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 
 	inFile.write(' &ions' + '\n')
 	for key, val in self.ions_params.items():
@@ -224,9 +290,8 @@ def _qeIons(self):
 #-- END _qeIons --#
 
 def _qeAtomicSpecies(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 
 	inFile.write('ATOMIC_SPECIES\n')
 	asp = self.atomic_species_params['atomic_species']
@@ -245,9 +310,8 @@ def _qeAtomicSpecies(self):
 #-- END _qeAtomicSpecies --#
 
 def _qeAtomicPositions(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 	
 	ap = self.atomic_positions_params['atomic_positions']
 	if ap.lower() != 'alat' and ap.lower() != 'bohr' and \
@@ -274,9 +338,8 @@ def _qeAtomicPositions(self):
 #-- END _qeAtomicPositions --#
 
 def _qeKpoints(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 
 	kpt = self.k_points_params['k_points']
 	inFile.write('K_POINTS {0}\n'.format(kpt))
@@ -301,9 +364,8 @@ def _qeKpoints(self):
 #-- END _qeKpoints --#
 
 def _qeCellParameters(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 	
 	if self.cell_parameters_params['units'] != None:
 		inFile.write('CELL_PARAMETERS {{ {0} }}\n'.format(self.cell_parameters_params['units']))
@@ -322,10 +384,8 @@ def _qeCellParameters(self):
 #-- END qeCellParameters --#
 
 def _qeConstraints(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
-
+	inFile = open(str(fileName), 'a')
 	
 	use = False
 	for key, val in self.constraints_params.items():
@@ -354,11 +414,9 @@ def _qeConstraints(self):
 #-- END _qeConstraints --#
 
 def _qeOccupations(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
+	inFile = open(str(fileName), 'a')
 
-	
 	use = False
 	for key, val in self.occupations_params.items():
 		if val is not None:
@@ -387,10 +445,8 @@ def _qeOccupations(self):
 #-- END _qeOccupations --#
 
 def _qeAtomicForces(self):
-	qedir = str(self.qedir).rstrip('/')
 	fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-	inFile = open(qedir + '/' + str(fileName), 'a')
-
+	inFile = open(str(fileName), 'a')
 	
 	use = False
 	for key, val in self.atomic_forces_params.items():
@@ -420,17 +476,23 @@ def _qeAtomicForces(self):
 #-- END _qeAtomicForces --#
 
 def _qeSubmission(self):
-	runFile = open(str(fileName), 'w')
+	inFileName = self.quote_control_params['title'].strip('\'\"') + '.in'
+	outFileName = self.quote_control_params['title'].strip('\'\"') + '.out'
+	runFile = open('pwxrun.sh', 'w')
 	runFile.write('#!/bin/bash' + '\n')
-	runFile.write('#PBS -j oe' + '\n')
-	runFile.write('#PBS -l nodes=1:ppn={0:s}\n'.format(str(numProcs)))
-	runFile.write('#PBS -l walltime={0:s}:00:00' + '\n'.format(str(wallHrs)))
-	runFile.write('#PBS -l mem={0:s}gb' + '\n'.format(str(mem)))
-	runFile.write('#PBS -l vmem={0:s}gb' + '\n'.format(str(vmem)))
-	runFile.write('#PBS -N {0:s}\n'.format(str(title)))
-	runFile.write('cd $PBS_O_WORKDIR' + '\n')
+	runFile.write('#PBS {0}\n'.format(str(self.run_params['options'])))
+	runFile.write('#PBS -l nodes={0}:ppn={1}\n'.format(str(self.run_params['nodes']), self.run_params['ppn']))
+	runFile.write('#PBS -l walltime={0}:00:00\n'.format(str(self.run_params['walltime'])))
+	runFile.write('#PBS -l mem={0}\n'.format(str(self.run_params['mem'])))
+	runFile.write('#PBS -l vmem={0}\n'.format(str(self.run_params['vmem'])))
+	runFile.write('#PBS -N {0}\n'.format(str(self.run_params['jobname'])))
+	runFile.write('cd $PBS_O_WORKDIR\n')
 	runFile.write('\n')
+	runFile.write('mpirun -np {0} {1} '.format(str(self.run_params['ppn']), str(self.run_params['pw.x'])))
+	for key, value in self.parallel_params.items():
+		if value is not None:
+			runFile.write('-{0} {1} '.format(str(key), str(value)))
+	runFile.write('< {0} > {1}\n'.format(str(inFileName), str(outFileName)))
 	runFile.close()
 #-- END _qeSubmission --#
-
 

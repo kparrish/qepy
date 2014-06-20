@@ -1,8 +1,8 @@
-import qepy
+from qepy import *
 
 kpts = [2, 4, 6]
 for i, k in enumerate(kpts):
-	myQE = qepy.PWscf('./si_kpts_' + str(k),
+	with pwx('./ex_si_kpts_' + str(k),
 					title='si_kpts_' + str(k),
 					calculation='scf',
 					prefix='si_kpts_' + str(k),
@@ -20,6 +20,9 @@ for i, k in enumerate(kpts):
 										['Si', 0.25, 0.25, 0.25]],
 					k_points='automatic',
 					k_points_list=[k, k, k, 1, 1, 1],
-				)
+				) as calc:
+		try:
+			calc.calculate(recalc=True)
+		except(QepyException):
+			pass
 
-	myQE.calculate(recalc=True)

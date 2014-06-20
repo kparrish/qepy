@@ -201,7 +201,7 @@ occupations_keys = [
 	'f_inp2',
 ]
 
-constrains_keys = [
+constraints_keys = [
 	'nconst',
 	'constr_tol',
 	'constr',
@@ -209,4 +209,38 @@ constrains_keys = [
 
 atomic_forces_keys = [
 	'atomic_forces',
+]
+
+parallel_keys = [
+	'nimage',
+	'npools',
+	'nband',
+	'ntg',
+	'ndiag',
+	'northo',
+	'ni',
+	'nk',
+	'nb',
+	'nt',
+	'nd',
+	'ppn',
+	'nodes',
+	'mem',
+	'vmem',
+	'walltime',
+	'jobname',
+	'options',
+]
+
+run_keys = [
+	'pw.x',
+	'mode',
+	'command',
+	'options',
+	'walltime',
+	'nodes',
+	'ppn',
+	'mem',
+	'vmem',
+	'jobname',
 ]
