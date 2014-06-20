@@ -1,7 +1,9 @@
 ## ## ## qepy.py v.0.0
 ## ## ## Created: 06/12/2014 - KDP
 import os
+import commands
 import numpy as np
+import subprocess as sub
 from shutil import rmtree
 from os.path import isdir
 
@@ -144,17 +146,19 @@ class pwx:
 				raise TypeError('Parameter not defined: '+ key)
 
 	def calculate(self, recalc=False, norun=False, **kwargs):
-		## Create input file
-		_qeControl(self)
-		_qeSystem(self)
-		_qeElectrons(self)
-		_qeIons(self)
-		_qeAtomicSpecies(self)
-		_qeAtomicPositions(self)
-		_qeKpoints(self)
-		_qeCellParameters(self)
-		_qeOccupations(self)
-		_qeAtomicForces(self)
+		fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
+		if not os.path.isfile(fileName):
+			## Create input file
+			_qeControl(self)
+			_qeSystem(self)
+			_qeElectrons(self)
+			_qeIons(self)
+			_qeAtomicSpecies(self)
+			_qeAtomicPositions(self)
+			_qeKpoints(self)
+			_qeCellParameters(self)
+			_qeOccupations(self)
+			_qeAtomicForces(self)
 
 		## Set run/parallelization commands
 		# QEPYRC defaults
@@ -179,12 +183,46 @@ class pwx:
 			self.run_params['jobname'] = self.quote_control_params['title'].strip('\'\"')
 
 		## Submit/Run job
-		if not norun:
+		if _job_in_queue(self):			# If in queue, exit
+			raise QepyRunning()
+		elif self._energy() != False:	# If already done, exit
+			pass
+		else:							# If not in queue and not done, run	
 			if self.run_params['mode'] == 'queue':
 				_qeSubmission(self)
-				os.system('qsub pwxrun.sh')
+				out = ''; err = ''
+				sub.call('qsub pwxrun.sh', shell=True, stdout=out, stderr=err)
+				if out == '' or err != '':
+					raise Exception(err)
+				else:
+					f = open('jobid','w')
+					f.write(out)
+					f.close()
+					raise QepySubmitted(out)
 			elif self.run_params['mode'] == 'local':
 				self._local(**kwargs)
+	
+	def _job_in_queue(self):
+		if not os.path.isfile('jobid'):
+			return False
+		else:
+			# Get jobid
+			jobid = open('jobid').readline().strip()
+
+			# See if jobid is in the queue
+			jobids_in_queue = commands.getoutput('qselect').split('\n')
+			if jobid in jobids_in_queue:
+				status, output = commands.getstatusoutput('qstat {0}'.format(jobid))
+				if status == 0:
+					lines = output.split('\n')
+					fields = lines[2].split()
+					job_status = fields[4]
+					if job_status == 'C':
+						return False
+					else:
+						return True
+			else:
+				return False
 
 	def _local(self, **kwargs):
 		"""
@@ -195,13 +233,13 @@ class pwx:
 		command = self.run_params['pw.x']
 		for key, value in self.parallel_params.items():
 			if value is not None:
-				command + '-{0} {1} '.format(str(key), str(value))
-		command + '< {0} > {1}'.format(inFileName, outFileName)
+				command += ' -{0} {1} '.format(str(key), str(value))
+		command += ' < {0} > {1}'.format(inFileName, outFileName)
 		os.system(command)
 
 	def _energy(self):
 		fileName = self.quote_control_params['title'].strip('\'\"') + '.out'
-		outFile = open(qedir + '/' + str(fileName), 'r')
+		outFile = open(str(fileName), 'r')
 
 		while True:
 			myString = outFile.readline()
@@ -218,7 +256,7 @@ class pwx:
 
 	def get_energy(self):
 		# add if running, add if need to submit
-		energy = _energy(self)
+		energy = self._energy()
 		if not energy:
 			raise QepyNotComplete('')
 		else:
