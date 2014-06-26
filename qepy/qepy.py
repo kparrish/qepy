@@ -3,7 +3,7 @@
 import os
 import commands
 import numpy as np
-import subprocess as sub
+from subprocess import Popen, PIPE
 from shutil import rmtree
 from os.path import isdir
 
@@ -146,8 +146,9 @@ class pwx:
 				raise TypeError('Parameter not defined: '+ key)
 
 	def calculate(self, recalc=False, norun=False, **kwargs):
-		fileName = self.quote_control_params['title'].strip('\'\"') + '.in'
-		if not os.path.isfile(fileName):
+		inFile = self.quote_control_params['title'].strip('\'\"') + '.in'
+		outFile = self.quote_control_params['title'].strip('\'\"') + '.out'
+		if not os.path.isfile(inFile):
 			## Create input file
 			_qeControl(self)
 			_qeSystem(self)
@@ -183,15 +184,16 @@ class pwx:
 			self.run_params['jobname'] = self.quote_control_params['title'].strip('\'\"')
 
 		## Submit/Run job
-		if _job_in_queue(self):			# If in queue, exit
+		if self._job_in_queue():			# If in queue, exit
 			raise QepyRunning()
-		elif self._energy() != False:	# If already done, exit
-			pass
+		elif os.path.isfile(outFile):
+			if self._energy() != False:	# If already done, exit
+				pass
 		else:							# If not in queue and not done, run	
 			if self.run_params['mode'] == 'queue':
 				_qeSubmission(self)
-				out = ''; err = ''
-				sub.call('qsub pwxrun.sh', shell=True, stdout=out, stderr=err)
+				p = Popen(['qsub', 'pwxrun.sh'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+				out, err = p.communicate()
 				if out == '' or err != '':
 					raise Exception(err)
 				else:
