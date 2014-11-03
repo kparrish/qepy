@@ -91,12 +91,9 @@ class pwx:
 		## Create Paths
 		qedir = str(self.qedir).rstrip('/')
 		outdir = self.quote_control_params['outdir'].strip(' \'\"\t\n\r/.')
-		#-- Add code to not delete if already exists --#
-		if isdir(qedir):
-			rmtree(qedir)
-
-		os.mkdir('{0}'.format(qedir))
-		os.mkdir('{0}/{1}'.format(qedir, outdir)) 
+		if not isdir(qedir):
+			os.mkdir('{0}'.format(qedir))
+			os.mkdir('{0}/{1}'.format(qedir, outdir)) 
 		os.chdir(qedir)
 		return self
 	
