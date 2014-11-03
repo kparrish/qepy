@@ -11,7 +11,7 @@ for i, k in enumerate(kpts):
 					calculation='scf',
 					prefix='si_kpts_' + str(k),
 					outdir='./tmp',
-					pseudo_dir='../pseudo',
+					pseudo_dir='../',
 
 					ibrav=2,
 					celldm=[1, 10.2],
@@ -19,7 +19,7 @@ for i, k in enumerate(kpts):
 					ntyp=1,
 					ecutwfc=20.0,
 
-					atomic_species=['Si', 28, 'Si.pz-vbc.UPF'],
+					atomic_species=['Si', 28, 'Si.pz-bhs.UPF'],
 					atomic_positions='alat',
 					atomic_positions_list=[['Si', 0, 0, 0],
 										['Si', 0.25, 0.25, 0.25]],
@@ -27,7 +27,7 @@ for i, k in enumerate(kpts):
 					k_points_list=[k, k, k, 1, 1, 1],
 				) as calc:
 		try:
-			calc.calculate(recalc=True)
+			calc.calculate()
 			energy[i] = calc.get_energy()
 		except(QepyException):
 			pass

@@ -1,7 +1,7 @@
 import os
 
 QEPYRC = {'pw.x':'/opt/espresso-5.1/bin/pw.x',
-		'mode':'local',
+		'mode':'queue',
 		'command':'qsub',
 		'options':'-joe',
 		'walltime':'24',

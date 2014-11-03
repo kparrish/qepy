@@ -142,7 +142,7 @@ class pwx:
 			else:
 				raise TypeError('Parameter not defined: '+ key)
 
-	def calculate(self, recalc=False, norun=False, **kwargs):
+	def calculate(self, **kwargs):
 		inFile = self.quote_control_params['title'].strip('\'\"') + '.in'
 		outFile = self.quote_control_params['title'].strip('\'\"') + '.out'
 		if not os.path.isfile(inFile):
