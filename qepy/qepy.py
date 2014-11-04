@@ -1,4 +1,4 @@
-## ## ## qepy.py v.0.0
+## ## ## qepy.py v.0.1.1
 ## ## ## Created: 06/12/2014 - KDP
 import os
 import commands
@@ -7,22 +7,15 @@ from subprocess import Popen, PIPE
 from shutil import rmtree
 from os.path import isdir
 
-import pwxlist as pwxl		# parameter lists fo PWscf
+import pwxlist as pwxl			# parameter lists of pwx
 from qepyrc import *			# configuration file
 from qepy_exceptions import *	# exceptions definitions
 
 
 class pwx:
 	"""
-	qepy.PWscf()
-	Parameters
-	----------
-		restart_mode : str
-			Switch
-	Returns
-	-------
-		energy : float
-			The energy found in the QE file.
+	qepy.pwx()
+	A Quantum Espresso pw.x instance
 	"""
 	def __init__(self, qedir, **kwargs):
 		usrHome = os.path.expanduser('~')
@@ -181,12 +174,16 @@ class pwx:
 			self.run_params['jobname'] = self.quote_control_params['title'].strip('\'\"')
 
 		## Submit/Run job
-		if self._job_in_queue():			# If in queue, exit
+		if self._job_in_queue():	# If in queue, exit
 			raise QepyRunning()
 		elif os.path.isfile(outFile):
 			if self._energy() != False:	# If already done, exit
 				pass
-		else:							# If not in queue and not done, run	
+			else:
+				raise QepyNotComplete('Job not found in queue, energy not found in out file')
+		elif os.path.isfile('jobid'):	# jobid file already exists
+			raise QepyNotComplete('Found jobid file, but not running and no output file')
+		else:	# If not in queue and not done, run	
 			if self.run_params['mode'] == 'queue':
 				_qeSubmission(self)
 				p = Popen(['qsub', 'pwxrun.sh'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
