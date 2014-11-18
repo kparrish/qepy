@@ -254,7 +254,7 @@ class pwx:
 		# add if running, add if need to submit
 		energy = self._energy()
 		if not energy:
-			raise QepyNotComplete('')
+			raise QepyNotComplete()
 		else:
 			return energy
 
@@ -284,6 +284,8 @@ def _qeSystem(self):
 		if val is not None:
 			if len(val) is not 2:
 				raise ValueError('Value for {0} must be a list or tuple of length 2'.format(key))
+			elif key is 'celldm':	# Have celldm default to an angstrom input
+				inFile.write('  {0}({1})={2},\n'.format(str(key), str(val[0]), str(val[1]/0.5291772108)))
 			else:
 				inFile.write('  {0}({1})={2},\n'.format(str(key), str(val[0]), str(val[1])))
 	for key, val in self.system_params.items():

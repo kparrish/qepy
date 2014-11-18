@@ -1,14 +1,14 @@
 from exceptions import Exception
 
 class QepyException(Exception):
-	pass
-
-class QepyNotComplete(QepyException):
 	def __init__(self, message=''):
 		self.message = message
 	
 	def __str__(self):
 		return self.message
+
+class QepyNotComplete(QepyException):
+	pass
 
 class QepySubmitted(QepyException):
 	def __init__(self, jobid):

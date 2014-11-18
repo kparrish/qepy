@@ -8,7 +8,7 @@ with pwx('./ex_si_sub',
 		pseudo_dir='../',
 
 		ibrav=2,
-		celldm=[1, 10.2],
+		celldm=[1, 5.431],
 		nat=2,
 		ntyp=1,
 		ecutwfc=20.0,
