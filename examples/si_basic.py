@@ -22,5 +22,5 @@ with pwx('./ex_si_basic',
 		) as calc:
 	try:
 		calc.calculate(mode='local')
-	except (QepyException):
+	except (QepyRunning, QepySubmitted):
 		pass

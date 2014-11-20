@@ -29,7 +29,7 @@ for i, k in enumerate(kpts):
 		try:
 			calc.calculate()
 			energy[i] = calc.get_energy()
-		except(QepyException):
+		except(QepyRunning, QepySubmitted):
 			pass
 
 plt.scatter(kpts, energy)
