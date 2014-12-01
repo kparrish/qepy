@@ -2,6 +2,7 @@ import os
 
 QEPYRC = {'pw.x':'/opt/espresso-5.1/bin/pw.x',
 		'ph.x':'/opt/espresso-5.1/bin/ph.x',
+		'q2r.x':'/opt/espresso-5.1/bin/q2r.x',
 		'mode':'queue',
 		'command':'qsub',
 		'options':'-joe',

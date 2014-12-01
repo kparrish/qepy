@@ -22,6 +22,7 @@ parallel_keys = [
 run_keys = [
 	'pw.x',
 	'ph.x',
+	'q2r.x',
 	'mode',
 	'command',
 	'options',
