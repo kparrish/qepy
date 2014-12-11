@@ -3,7 +3,7 @@
 import os
 import commands
 import numpy as np
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, call
 from shutil import rmtree
 from os.path import isdir
 
@@ -97,10 +97,11 @@ class pwx:
 		## Create Paths
 		qedir = str(self.qedir).rstrip('/')
 		outdir = self.quote_control_params['outdir'].strip(' \'\"\t\n\r/.')
-		if not isdir(qedir):
-			os.mkdir('{0}'.format(qedir))
-			os.mkdir('{0}/{1}'.format(qedir, outdir)) 
-		os.chdir(qedir)
+		if qedir is not os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
+			if not isdir(qedir):
+				os.mkdir('{0}'.format(qedir))
+				os.mkdir('{0}/{1}'.format(qedir, outdir)) 
+			os.chdir(qedir)
 		return self
 	
 	def __exit__(self, exc_type, exc_val, exc_tb):
@@ -233,12 +234,19 @@ class pwx:
 		"""
 		inFileName = self.title.strip('\'\"') + '.in'
 		outFileName = self.title.strip('\'\"') + '.out'
-		command = self.run_params['pw.x']
+		command = ''
+		if self.run_params['ppn'] is not 1: # allow mpirun if multiple cores requested
+			command += 'mpirun -np {0} '.format(self.run_params['ppn'])
+		command += self.run_params['pw.x']
 		for key, value in self.parallel_params.items():
 			if value is not None:
 				command += ' -{0} {1} '.format(str(key), str(value))
 		command += ' < {0} > {1}'.format(inFileName, outFileName)
-		os.system(command)
+		p = Popen([command], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True) 
+		p.wait() # wait for comannd to finish
+		out, err = p.communicate()
+		if err != '':
+			raise Exception(err)
 
 	def _energy(self):
 		fileName = self.title.strip('\'\"') + '.out'
@@ -595,7 +603,7 @@ class phx:
 		## Create Paths
 		qedir = str(self.qedir).rstrip('/')
 		outdir = self.quote_inputph_params['outdir'].strip(' \'\"\t\n\r/.')
-		if not isdir('../' + qedir): # Check if dependent job already created folder
+		if qedir is not os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
 			if not isdir(qedir):
 				os.mkdir('{0}'.format(qedir))
 				os.mkdir('{0}/{1}'.format(qedir, outdir)) 
@@ -722,12 +730,19 @@ class phx:
 		"""
 		inFileName = self.title.strip('\'\"') + '.in'
 		outFileName = self.title.strip('\'\"') + '.out'
-		command = self.run_params['ph.x']
+		command = ''
+		if self.run_params['ppn'] is not 1: # allow mpirun if multiple cores requested
+			command += 'mpirun -np {0} '.format(self.run_params['ppn'])
+		command += self.run_params['ph.x']
 		for key, value in self.parallel_params.items():
 			if value is not None:
 				command += ' -{0} {1} '.format(str(key), str(value))
 		command += ' < {0} > {1}'.format(inFileName, outFileName)
-		os.system(command)
+		p = Popen([command], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True) 
+		p.wait() # wait for comannd to finish
+		out, err = p.communicate()
+		if err != '':
+			raise Exception(err)
 
 	def _qeInputph(self):
 		fileName = self.title.strip('\'\"') + '.in'
@@ -800,7 +815,7 @@ class q2r:
 		"""
 		## Create Paths
 		qedir = str(self.qedir).rstrip('/')
-		if not isdir('../' + qedir): # Check if dependent job already created folder
+		if qedir is not os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
 			if not isdir(qedir):
 				os.mkdir('{0}'.format(qedir))
 			os.chdir(qedir)
@@ -922,12 +937,19 @@ class q2r:
 		"""
 		inFileName = self.title.strip('\'\"') + '.in'
 		outFileName = self.title.strip('\'\"') + '.out'
-		command = self.run_params['q2r.x']
+		command = ''
+		if self.run_params['ppn'] is not 1: # allow mpirun if multiple cores requested
+			command += 'mpirun -np {0} '.format(self.run_params['ppn'])
+		command += self.run_params['q2r.x']
 		for key, value in self.parallel_params.items():
 			if value is not None:
 				command += ' -{0} {1} '.format(str(key), str(value))
 		command += ' < {0} > {1}'.format(inFileName, outFileName)
-		os.system(command)
+		p = Popen([command], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True) 
+		p.wait() # wait for comannd to finish
+		out, err = p.communicate()
+		if err != '':
+			raise Exception(err)
 
 	def _qeInput(self):
 		fileName = self.title.strip('\'\"') + '.in'
