@@ -585,6 +585,8 @@ class phx:
 				raise TypeError('PWX must be of type pwx')
 			else:
 				self.pwx = PWX
+		else:
+			self.pwx = None
 
 		self._set(**kwargs)
 
@@ -798,6 +800,8 @@ class q2r:
 				raise TypeError('PHX must be of type phx')
 			else:
 				self.phx = PHX
+		else:
+			self.phx = None
 
 		self._set(**kwargs)
 
