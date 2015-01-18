@@ -1,7 +1,7 @@
 from qepy import *
 
-with pwx('./ex_si_sub',
-		title='si_sub',
+with pwx('./ex_si_ph',
+		title='si_pwx',
 		calculation='scf',
 		prefix='silicon',
 		outdir='./tmp',
@@ -19,8 +19,21 @@ with pwx('./ex_si_sub',
 								['Si', 0.25, 0.25, 0.25]],
 		k_points='automatic',
 		k_points_list=[4, 4, 4, 1, 1, 1],
-		) as calc:
-	try:
-		calc.calculate(mode='queue', npools=1)
-	except (QepyRunning, QepySubmitted):
-		pass
+		) as pwCalc:
+	with phx('./ex_si_ph',
+			title='si_ph',
+			PWX=pwCalc,
+			tr2_ph=1e-10,
+			ldisp='.true.',
+			nq1=2,
+			nq2=2,
+			nq3=2,
+			amass=[1, 28],
+			prefix='silicon',
+			outdir='./tmp',
+			fildyn='./si.dyn'
+			) as phCalc:
+		try:
+			phCalc.calculate(mode='queue', npools=1)
+		except (QepyRunning, QepySubmitted):
+			pass

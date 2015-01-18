@@ -1,6 +1,8 @@
 import os
 
 QEPYRC = {'pw.x':'/opt/espresso-5.1/bin/pw.x',
+		'ph.x':'/opt/espresso-5.1/bin/ph.x',
+		'q2r.x':'/opt/espresso-5.1/bin/q2r.x',
 		'mode':'queue',
 		'command':'qsub',
 		'options':'-joe',
@@ -11,7 +13,7 @@ QEPYRC = {'pw.x':'/opt/espresso-5.1/bin/pw.x',
 		'vmem':'2GB',
 		'jobname:':'None'}
 
-def read_configureation(fname):
+def read_configuration(fname):
 	f = open(fname)
 	for line in f:
 		line = line.strip()
@@ -24,7 +26,7 @@ def read_configureation(fname):
 			if '#' in line:
 				# take the part before the first #
 				line = line.split('#')[0]
-			key, value = line.value('=')
+			key, value = line.split('=')
 			QEPYRC[key.strip()] = value.strip()
 
 config_files = [os.path.join(os.environ['HOME'], '.qepyrc'),

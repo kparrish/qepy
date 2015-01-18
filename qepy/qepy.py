@@ -278,6 +278,14 @@ class pwx:
 		return False
 	#-- END _energy --#
 
+#	def _forces(self):
+#		fileName = self.title.strip('\'\"') + '.out'
+#		outFile = open(str(fileName), 'r')
+#
+#		if self.control_params['tprnfor'] == '.true.':
+#			while True:
+#				myString = outFile.readline().strip('\'\"').lower()
+
 	def get_energy(self):
 		energy = self._energy()
 		if os.path.isfile('CRASH'):
