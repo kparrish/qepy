@@ -278,15 +278,121 @@ class pwx:
 		return False
 	#-- END _energy --#
 
-#	def _forces(self):
-#		fileName = self.title.strip('\'\"') + '.out'
-#		outFile = open(str(fileName), 'r')
-#
-#		if self.control_params['tprnfor'] == '.true.':
-#			while True:
-#				myString = outFile.readline().strip('\'\"').lower()
+	def _forces(self):
+		fileName = self.title.strip('\'\"') + '.out'
+		forces = []
+		if type(self.control_params['tprnfor']) is not str:
+			print("Forces not calculated. Set 'tprnfor' = '.true.' in input file to calculate")
+			return False
+		if self.control_params['tprnfor'].strip().lower() == '.true.':
+			with open(str(fileName), 'r') as outFile:
+				while True:
+					myString = outFile.readline().lower()
 
+					if myString.find('forces acting on atoms') > -1:
+						while True:
+							forceString = outFile.readline().lower()
+							if forceString.find('atom') > -1:
+								forces.append([forceString.split()[6],
+										forceString.split()[7],
+										forceString.split()[8]])
+							elif forceString.find('total force') > -1:
+								forces.append(forceString.split()[3])
+								return np.array(forces)
+							elif forceString == '':
+								break
+					elif myString == '':
+						break
+				return False
+		else:
+			print("Forces not calculated. Set tprnfor == '.true.' in input file to calculate.")
+			return False
+	#-- END _forces --#
+
+	def _stress_pressure(self):
+		fileName = self.title.strip('\'\"') + '.out'
+		stress = []
+		pressure = []
+		totalP = None
+		if not isinstance(self.control_params['tstress'], str):
+			print("Stress not calculated. set 'tstress' = '.true.' in input file")
+			return False
+		if self.control_params['tstress'].strip().lower() == '.true.':
+			with open(str(fileName), 'r') as outFile:
+				while True:
+					myString = outFile.readline().lower()
+
+					if myString.find('entering subroutine stress') > -1:
+						while True:
+							spString = outFile.readline().lower()
+							if spString.find('total   stress') > -1:
+								totalP = spString.split()[5]
+								for i in range(3):
+									spString = outFile.readline().lower()
+									stress.append([spString.split()[0],
+											spString.split()[1],
+											spString.split()[2]])
+									pressure.append([spString.split()[3],
+											spString.split()[4],
+											spString.split()[5]])
+								return np.array(stress),np.array(pressure),totalP
+							elif spString == '':
+								break
+					elif myString == '':
+						break
+				return False
+		else:
+			print("Pressure not calculated. Set tstress == '.true.' in input file to calculate.")
+			return False
+	#-- END _pressure --#
+
+	def get_stress_pressure(self, type='all'):
+		'''
+		Returns the pressure from the output file. Requires tstress to be \'.true.\'
+		To return only stress or pressure set type='stress' or 'pressure'
+		'''
+		output = self._stress_pressure()
+		if os.path.isfile('CRASH'):
+			raise QepyCrash('Quantum Espresso has crashed')
+		elif not os.path.isfile('jobid'):
+			raise QepyNotComplete('Job not submitted')
+		elif self._job_in_queue():
+			raise QepyNotComplete('Job still in queue')
+		elif not self._check_complete():
+			raise QepyNotComplete('Unknown error')
+		elif output == False:
+			raise QepyNotComplete('')
+		else:
+			if type.lower() == 'all':
+				return output[0],output[1],output[2]
+			elif type.lower() == 'stress':
+				return output[0]
+			elif type.lower() == 'pressure':
+				return output[1],output[2]
+			else:
+				print("Error. Set type = 'all', 'stress', or 'pressure'")
+				return False							
+								
+	def get_forces(self):
+		'''
+		Returns the forces from the output file. Requires tprnfor to be \'.true.\'
+		'''
+		forces = self._forces()
+		if os.path.isfile('CRASH'):
+			raise QepyCrash('Quantum Espresso has crashed')
+		elif not os.path.isfile('jobid'):
+			raise QepyNotComplete('Job not submitted')
+		elif self._job_in_queue():
+			raise QepyNotComplete('Job still in queue')
+		elif not self. _check_complete():
+			raise QepyNotComplete('Unknown error')
+		else:
+			return forces
+						
 	def get_energy(self):
+		'''
+		Returns the energy from the output file.
+		'''
 		energy = self._energy()
 		if os.path.isfile('CRASH'):
 			raise QepyCrash('Quantum Espresso has crashed')
@@ -294,8 +400,8 @@ class pwx:
 			raise QepyNotComplete('Job not submitted')
 		elif self._job_in_queue():
 			raise QepyNotComplete('Job still in queue')
-		elif not energy:
-			raise QepyNotComplete()
+		elif not self._check_complete():
+			raise QepyNotComplete('Unknown error')
 		else:
 			return energy
 
