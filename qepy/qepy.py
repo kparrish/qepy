@@ -3,8 +3,10 @@
 import os
 import commands
 import numpy as np
+import cPickle as pickle
+from inspect import ismethod
 from subprocess import Popen, PIPE, call
-from shutil import rmtree
+from shutil import rmtree, copytree, copy2
 from os.path import isdir
 
 import runlist as runl			# parameter list for running job
@@ -21,9 +23,6 @@ class pwx:
 	A Quantum Espresso pw.x instance
 	"""
 	def __init__(self, qedir, **kwargs):
-		usrHome = os.path.expanduser('~')
-		self.qedir = qedir.replace('~', usrHome)
-		self.cwd = os.getcwd()
 		self.quote_control_params = {}
 		self.control_params = {}
 		self.paren_system_params = {}
@@ -79,6 +78,18 @@ class pwx:
 		for key in QEPYRC:
 			if self.run_params.has_key(key):
 				self.run_params[key] = QEPYRC[key]
+		
+		# Load any previous settings
+		qedir = str(qedir).rstrip('/')
+		if isdir(qedir):
+			self._load_object(qedir + '/.qepy.pkl')
+
+		# Set new directory settings
+		usrHome = os.path.expanduser('~')
+		self.qedir = qedir.replace('~', usrHome)
+		self.cwd = os.getcwd()
+		if self.quote_control_params['title'] is not None:
+			self.title = self.quote_control_params['title']
 
 		self._set(**kwargs)
 
@@ -108,6 +119,7 @@ class pwx:
 		"""
 		On exit, change back to original directory.
 		"""
+		self._save_object('./.qepy.pkl')
 		os.chdir(self.cwd)
 		return False	# Allows exception to propogate out
 
@@ -153,6 +165,70 @@ class pwx:
 			else:
 				raise TypeError('Parameter not defined: '+ key)
 		self.title = self.quote_control_params['title']
+
+## ## ## JOB MANAGEMENT FUNCTIONS ## ## ##
+
+	def _job_in_queue(self):
+		if not os.path.isfile('jobid'):
+			return False
+		else:
+			# Get jobid
+			jobid = open('jobid').readline().strip()
+
+			# See if jobid is in the queue
+			jobids_in_queue = commands.getoutput('qselect').split('\n')
+			if jobid in jobids_in_queue:
+				status, output = commands.getstatusoutput('qstat {0}'.format(jobid))
+				if status == 0:
+					lines = output.split('\n')
+					fields = lines[2].split()
+					job_status = fields[4]
+					if job_status == 'C':
+						return False
+					else:
+						return True
+			else:
+				return False
+
+	def _local(self, **kwargs):
+		"""
+		Run the calculation through command line
+		"""
+		inFileName = self.title.strip('\'\"') + '.in'
+		outFileName = self.title.strip('\'\"') + '.out'
+		command = ''
+		if self.run_params['ppn'] is not 1: # allow mpirun if multiple cores requested
+			command += 'mpirun -np {0} '.format(self.run_params['ppn'])
+		command += self.run_params['pw.x']
+		for key, value in self.parallel_params.items():
+			if value is not None:
+				command += ' -{0} {1} '.format(str(key), str(value))
+		command += ' < {0} > {1}'.format(inFileName, outFileName)
+		p = Popen([command], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True) 
+		p.wait() # wait for comannd to finish
+		out, err = p.communicate()
+		if err != '':
+			raise Exception(err)
+
+	def _load_object(self, fname):	
+		"""
+		If save object exists, then load and set attributes.
+		"""
+		if os.path.isfile(fname):
+			with open(fname, 'rb') as input:
+				old_object = pickle.load(input)
+				for i in dir(old_object):
+					if not i.startswith('__') and not ismethod(getattr(old_object,i)):
+						setattr(self, i, getattr(old_object, i))
+	
+	def _save_object(self, fname):
+		"""
+		Save object attributes to possible load later.
+		"""
+		with open(fname, 'wb') as output:
+			pickle.dump(self, output, -1)
+
+## ## ## USER ACCESS FUNCTIONS ## ## ##
 
 	def calculate(self, **kwargs):
 		inFile = self.title.strip('\'\"') + '.in'
@@ -208,48 +284,6 @@ class pwx:
 			elif self.run_params['mode'] == 'local':
 				self._local(**kwargs)
 	
-	def _job_in_queue(self):
-		if not os.path.isfile('jobid'):
-			return False
-		else:
-			# Get jobid
-			jobid = open('jobid').readline().strip()
-
-			# See if jobid is in the queue
-			jobids_in_queue = commands.getoutput('qselect').split('\n')
-			if jobid in jobids_in_queue:
-				status, output = commands.getstatusoutput('qstat {0}'.format(jobid))
-				if status == 0:
-					lines = output.split('\n')
-					fields = lines[2].split()
-					job_status = fields[4]
-					if job_status == 'C':
-						return False
-					else:
-						return True
-			else:
-				return False
-
-	def _local(self, **kwargs):
-		"""
-		Run the calculation through command line
-		"""
-		inFileName = self.title.strip('\'\"') + '.in'
-		outFileName = self.title.strip('\'\"') + '.out'
-		command = ''
-		if self.run_params['ppn'] is not 1: # allow mpirun if multiple cores requested
-			command += 'mpirun -np {0} '.format(self.run_params['ppn'])
-		command += self.run_params['pw.x']
-		for key, value in self.parallel_params.items():
-			if value is not None:
-				command += ' -{0} {1} '.format(str(key), str(value))
-		command += ' < {0} > {1}'.format(inFileName, outFileName)
-		p = Popen([command], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True) 
-		p.wait() # wait for comannd to finish
-		out, err = p.communicate()
-		if err != '':
-			raise Exception(err)
-
 	def _check_complete(self):
 		fileName = self.title.strip('\'\"') + '.out'
 		outFile = open(str(fileName), 'r')
@@ -344,14 +378,44 @@ class pwx:
 		else:
 			print("Pressure not calculated. Set tstress == '.true.' in input file to calculate.")
 			return False
-	#-- END _pressure --#
+	#-- END _stress_pressure --#
+
+	def _structure(self):
+		fileName = self.title.strip('\'\"') + '.out'
+		alat = 0.0
+		latVec = np.zeros((3, 3))
+		pos = np.zeros((self.system_params['nat'], 3))
+		with open(str(fileName), 'r') as outFile:
+			while True:
+				myString = outFile.readline()
+
+				if myString.find('CELL_PARAMETERS') > -1:
+					myString = myString.split()[2] # Get alat
+					alat = float(myString.strip('() \t'))
+
+					myString = outFile.readline().lower().strip().split()
+					latVec[0,:] = float(myString[0]), float(myString[1]), float(myString[2])
+					myString = outFile.readline().lower().split()
+					latVec[1,:] = float(myString[0]), float(myString[1]), float(myString[2])
+					myString = outFile.readline().lower().split()
+					latVec[2,:] = float(myString[0]), float(myString[1]), float(myString[2])
+
+				elif myString.find('ATOMIC_POSITIONS') > -1:
+					for i in range(self.system_params['nat']):
+						myString = outFile.readline().lower().strip().split()
+						pos[i,:] = float(myString[1]), float(myString[2]), float(myString[3])
+
+				elif myString == '':
+					break
+
+		return alat, latVec, pos
+	#-- END _structure --#
 
 	def get_stress_pressure(self, type='all'):
 		'''
 		Returns the pressure from the output file. Requires tstress to be \'.true.\'
 		To return only stress or pressure set type='stress' or 'pressure'
 		'''
-		output = self._stress_pressure()
 		if os.path.isfile('CRASH'):
 			raise QepyCrash('Quantum Espresso has crashed')
 		elif not os.path.isfile('jobid'):
@@ -359,10 +423,12 @@ class pwx:
 		elif self._job_in_queue():
 			raise QepyNotComplete('Job still in queue')
 		elif not self._check_complete():
-			raise QepyNotComplete('Unknown error')
-		elif output == False:
-			raise QepyNotComplete('')
+			raise QepyException('Unknown error')
 		else:
+			output = self._stress_pressure()
+			if output is false:
+				raise QepyException('Unknown error')
+
 			if type.lower() == 'all':
 				return output[0],output[1],output[2]
 			elif type.lower() == 'stress':
@@ -377,23 +443,6 @@ class pwx:
 		'''
 		Returns the forces from the output file. Requires tprnfor to be \'.true.\'
 		'''
-		forces = self._forces()
-		if os.path.isfile('CRASH'):
-			raise QepyCrash('Quantum Espresso has crashed')
-		elif not os.path.isfile('jobid'):
-			raise QepyNotComplete('Job not submitted')
-		elif self._job_in_queue():
-			raise QepyNotComplete('Job still in queue')
-		elif not self. _check_complete():
-			raise QepyNotComplete('Unknown error')
-		else:
-			return forces
-						
-	def get_energy(self):
-		'''
-		Returns the energy from the output file.
-		'''
-		energy = self._energy()
 		if os.path.isfile('CRASH'):
 			raise QepyCrash('Quantum Espresso has crashed')
 		elif not os.path.isfile('jobid'):
@@ -401,9 +450,47 @@ class pwx:
 		elif self._job_in_queue():
 			raise QepyNotComplete('Job still in queue')
 		elif not self._check_complete():
-			raise QepyNotComplete('Unknown error')
+			raise QepyException('Unknown error')
 		else:
+			forces = self._forces()
+			return forces
+						
+	def get_energy(self):
+		'''
+		Returns the energy from the output file.
+		'''
+		if os.path.isfile('CRASH'):
+			raise QepyCrash('Quantum Espresso has crashed')
+		elif not os.path.isfile('jobid'):
+			raise QepyNotComplete('Job not submitted')
+		elif self._job_in_queue():
+			raise QepyNotComplete('Job still in queue')
+		elif not self._check_complete():
+			raise QepyException('Unknown error')
+		else:
+			energy = self._energy()
 			return energy
+
+	def get_structure(self):
+		'''
+		Returns the relaxed structure from the output file.
+		'''
+		if self.quote_control_params['calculation'].strip('\'\" ').lower() \
+				!= 'relax' and \
+				self.quote_control_params['calculation'].strip('\'\" ').lower() \
+				!= 'vc-relax':
+			raise QepyException('Calculation must be either \'relax\' or \'vc-relax\'')
+		if os.path.isfile('CRASH'):
+			raise QepyCrash('Quantum Espresso has crashed')
+		elif not os.path.isfile('jobid'):
+			raise QepyNotComplete('Job not submitted')
+		elif self._job_in_queue():
+			raise QepyNotComplete('Job still in queue')
+		elif not self._check_complete():
+			raise QepyException('Unknown error')
+		else:
+			alat, latVec, pos = self._structure()
+			return alat, latVec, pos
 
 
 	def _qeControl(self):
@@ -525,7 +612,7 @@ class pwx:
 			raise ValueError('\'atomic_positions\' must be either \'alat\', \'bohr\', \'angstrom\', or \'crystal\'')
 		inFile.write('ATOMIC_POSITIONS {0}\n'.format(str(ap)))
 		apl = self.atomic_positions_params['atomic_positions_list']
-		if not isinstance(apl[0], list):
+		if not isinstance(apl[0], list) and not isinstance(apl[0], np.ndarray):
 			if len(apl) != 4 and len(apl) != 7:
 				raise ValueError('\'atomic_species_list\' must be len 4 or 7 or list of items of len 4 or 7')
 			elif len(apl) == 4:
