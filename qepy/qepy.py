@@ -990,10 +990,18 @@ class phx:
 				inFile.write('  {0:s}={1:s},\n'.format(str(key), str(val)))
 		for key, val in self.paren_inputph_params.items():
 			if val is not None:
-				if len(val) is not 2:
-					raise ValueError('Value for {0} must be a list or tuple of length 2'.format(key))
+				if not isinstance(val[0], list):
+					if len(val) is not 2:
+						raise ValueError('Value for {0} must be a list or tuple of length 2'.format(key))
+					else:
+						inFile.write('  {0}({1})={2},\n'.format(str(key), str(val[0]), str(val[1])))
 				else:
-					inFile.write('  {0}({1})={2},\n'.format(str(key), str(val[0]), str(val[1])))
+					for i in range(len(val)):
+						if len(val[i]) is not 2:
+							raise ValueError('Value for {0} must be a list or tuple of length 2'.format(key))
+						else:
+							inFile.write('  {0}({1})={2},\n'.format(str(key), str(val[i][0]), str(val[i][1])))
+						
 
 		inFile.write(' /' + '\n')
 		inFile.close()
