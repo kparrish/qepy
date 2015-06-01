@@ -108,7 +108,7 @@ class pwx:
 		## Create Paths
 		qedir = str(self.qedir).rstrip('/')
 		outdir = self.quote_control_params['outdir'].strip(' \'\"\t\n\r/.')
-		if qedir is not os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
+		if qedir.replace('./', '') != os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
 			if not isdir(qedir):
 				os.mkdir('{0}'.format(qedir))
 				os.mkdir('{0}/{1}'.format(qedir, outdir)) 
@@ -824,7 +824,7 @@ class phx:
 		## Create Paths
 		qedir = str(self.qedir).rstrip('/')
 		outdir = self.quote_inputph_params['outdir'].strip(' \'\"\t\n\r/.')
-		if qedir is not os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
+		if qedir.replace('./', '') != os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
 			if not isdir(qedir):
 				os.mkdir('{0}'.format(qedir))
 				os.mkdir('{0}/{1}'.format(qedir, outdir)) 
@@ -1056,7 +1056,7 @@ class q2r:
 		"""
 		## Create Paths
 		qedir = str(self.qedir).rstrip('/')
-		if qedir is not os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
+		if qedir.replace('./', '') != os.getcwd().rstrip('/').split('/')[-1]: # Check if already in target directory
 			if not isdir(qedir):
 				os.mkdir('{0}'.format(qedir))
 			os.chdir(qedir)

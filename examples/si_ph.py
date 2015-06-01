@@ -13,13 +13,14 @@ with pwx('./ex_si_ph',
 		ntyp=1,
 		ecutwfc=20.0,
 
-		atomic_species=['Si', 28, 'Si.pz-bhs.UPF'],
+		atomic_species=['Si', 28, 'Si.pz-vbc.UPF'],
 		atomic_positions='alat',
 		atomic_positions_list=[['Si', 0, 0, 0],
 								['Si', 0.25, 0.25, 0.25]],
 		k_points='automatic',
 		k_points_list=[4, 4, 4, 1, 1, 1],
 		) as pwCalc:
+
 	with phx('./ex_si_ph',
 			title='si_ph',
 			PWX=pwCalc,

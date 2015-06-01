@@ -19,7 +19,7 @@ for i, k in enumerate(kpts):
 					ntyp=1,
 					ecutwfc=20.0,
 
-					atomic_species=['Si', 28, 'Si.pz-bhs.UPF'],
+					atomic_species=['Si', 28, 'Si.pz-vbc.UPF'],
 					atomic_positions='alat',
 					atomic_positions_list=[['Si', 0, 0, 0],
 										['Si', 0.25, 0.25, 0.25]],
