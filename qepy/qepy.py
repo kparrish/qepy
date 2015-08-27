@@ -327,11 +327,10 @@ class pwx:
 						while True:
 							forceString = outFile.readline().lower()
 							if forceString.find('atom') > -1:
-								forces.append([forceString.split()[6],
-										forceString.split()[7],
-										forceString.split()[8]])
+								forces.append([float(forceString.split()[6]),
+										float(forceString.split()[7]),
+										float(forceString.split()[8])])
 							elif forceString.find('total force') > -1:
-								forces.append(forceString.split()[3])
 								return np.array(forces)
 							elif forceString == '':
 								break
