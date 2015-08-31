@@ -27,6 +27,7 @@ class pwx:
 		self.control_params = {}
 		self.paren_system_params = {}
 		self.system_params = {}
+		self.quote_system_params = {}
 		self.electrons_params = {}
 		self.paren_electrons_params = {}
 		self.ions_params = {}
@@ -49,6 +50,8 @@ class pwx:
 			self.paren_system_params[key] = None
 		for key in pwxl.system_keys:
 			self.system_params[key] = None
+		for key in pwxl.quote_system_keys:
+			self.quote_system_params[key] = None
 		for key in pwxl.electrons_keys:
 			self.electrons_params[key] = None
 		for key in pwxl.paren_electrons_keys:
@@ -136,6 +139,8 @@ class pwx:
 				self.paren_system_params[key] = kwargs[key]
 			elif self.system_params.has_key(key):
 				self.system_params[key] = kwargs[key]
+			elif self.quote_system_params.has_key(key):
+				self.quote_system_params[key] = kwargs[key]
 			elif self.electrons_params.has_key(key):
 				self.electrons_params[key] = kwargs[key]
 			elif self.paren_electrons_params.has_key(key):
@@ -535,6 +540,9 @@ class pwx:
 		for key, val in self.system_params.items():
 			if val is not None:
 				inFile.write('  {0}={1},\n'.format(str(key), str(val)))
+		for key, val in self.quote_system_params.items():
+			if val is not None:
+				inFile.write('  {0:s}={1:s},\n'.format(str(key), str(val)))
 		inFile.write(' /' + '\n')
 		inFile.close()
 	#-- END _qeSystem --#
